@@ -1,16 +1,30 @@
-flowchart TD
-    A[Begin: Robot enters the beehive] --> B[Trigger smoker]
-    B --> P[Move slider and rotate tube to scan beehive interior from all angles]
-    P --> D[Transmit captured images to the server for analysis]
-    D --> E[Computer vision AI agent analyzes images to identify honeypots]
-    E --> F[Generate a list of 3D honeypot coordinates]
-    F --> G{Are there any coordinates in the list?}
-    G -- No --> H[Choose the next coordinate from the list]
-    H --> I[Provide coordinate and other environment state to AI agent]
-    I --> J[AI creates instructions for slider movement, tube rotation, and syringe extension]
-    J --> L[Robot executes instructions to pinch the honeypot]
-    L --> M[Execute the honey extraction program]
-    M --> N[Delete coordinate from list]
-    N --> G
-    G -- Yes --> O[Measure harvested honey then send activity logs to the server]
-    O --> Q[Finish: Robot exits the beehive]
+graph TB
+    subgraph Initialize
+        direction LR
+        A[Begin: Robot enters the beehive] --> B[Trigger smoker]
+        B --> P[Move slider and rotate tube to scan beehive interior]
+        P --> D[Transmit images to server]
+        D --> E[AI analyzes images for honeypots]
+        E --> F[Generate 3D honeypot coordinates]
+    end
+    subgraph Processing
+        direction LR
+        G{Are there coordinates in the list?}
+        G -- Yes --> H[Choose next coordinate]
+        H --> I[Provide coordinate to AI]
+        I --> J[AI creates instructions]
+        J --> L[Robot pinches honeypot]
+    end
+    subgraph Completion
+        direction LR
+        S{Is an obstacle present?}
+        S -- No --> M[Execute honey extraction]
+        S -- Yes --> N
+        M --> N[Delete coordinate]
+        N --> R{Is harvest threshold reached?}
+        R -- No --> G
+        R -- Yes --> O[Measure honey, send logs]
+        O --> Q[Finish: Robot exits]
+    end
+    F --> G
+    L --> S
