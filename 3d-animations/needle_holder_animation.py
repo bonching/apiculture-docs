@@ -26,10 +26,10 @@ if bpy.context.scene.rigidbody_world:
 bpy.ops.rigidbody.world_add()
 bpy.context.scene.rigidbody_world.enabled = True
 
-# Configure rigid body world settings
+# Configure rigid body world settings (CORRECTED API PROPERTIES)
 rbw = bpy.context.scene.rigidbody_world
 rbw.time_scale = 1.0
-rbw.steps_per_second = 120  # Increased for smoother mechanism sim
+rbw.substeps_per_frame = 20  # Corrected: Steps per frame (was 'steps_per_second')
 rbw.solver_iterations = 20  # Higher for better constraint stability
 
 # List all objects in the scene (filter for meshes)
@@ -39,12 +39,12 @@ for obj in mesh_objects:
     print(f" - {obj.name}")
 
 
-# Function to setup rigid body for an object (UPDATED WITH CONTEXT FIXES)
+# Function to setup rigid body for an object (WITH CONTEXT FIXES)
 def setup_rigid_body(obj, body_type="ACTIVE", mass=1.0, friction=0.5, bounciness=0.0):
     """Setup rigid body physics for an object with robust context handling."""
     if not obj or obj.type != "MESH":
         print(f"Skipping invalid object: {obj.name if obj else 'None'}")
-        return
+        return False
 
     # Ensure object is visible and selectable
     obj.hide_viewport = False
@@ -62,15 +62,20 @@ def setup_rigid_body(obj, body_type="ACTIVE", mass=1.0, friction=0.5, bounciness
         try:
             # Context override for operator (assumes 3D viewport context)
             override = bpy.context.copy()
-            override['area'] = next((area for area in bpy.context.screen.areas if area.type == 'VIEW_3D'), None)
-            override['region'] = next((region for region in override['area'].regions if region.type == 'WINDOW'), None)
+            for area in bpy.context.screen.areas:
+                if area.type == 'VIEW_3D':
+                    override['area'] = area
+                    override['region'] = [r for r in area.regions if r.type == 'WINDOW'][0]
+                    break
+            else:
+                # Fallback if no 3D view: Use current context
+                pass
             override['active_object'] = obj
 
             with bpy.context.temp_override(**override):
                 bpy.ops.rigidbody.object_add()
         except RuntimeError as e:
             print(f"Failed to add rigid body to {obj.name}: {e}")
-            # Fallback: If possible, but rigid_body addition requires op; skip or warn
             return False
 
     # Configure rigid body settings
