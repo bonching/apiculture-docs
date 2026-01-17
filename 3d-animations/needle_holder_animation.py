@@ -39,7 +39,7 @@ for obj in mesh_objects:
     print(f" - {obj.name}")
 
 
-# Function to setup rigid body for an object (WITH CONTEXT FIXES)
+# Function to setup rigid body for an object (UPDATED WITH ROBUST CONTEXT HANDLING)
 def setup_rigid_body(obj, body_type="ACTIVE", mass=1.0, friction=0.5, bounciness=0.0):
     """Setup rigid body physics for an object with robust context handling."""
     if not obj or obj.type != "MESH":
@@ -50,32 +50,45 @@ def setup_rigid_body(obj, body_type="ACTIVE", mass=1.0, friction=0.5, bounciness
     obj.hide_viewport = False
     obj.hide_select = False
 
-    # Deselect all objects first
-    bpy.ops.object.select_all(action='DESELECT')
+    # Deselect all objects first (safe even without UI context)
+    try:
+        bpy.ops.object.select_all(action='DESELECT')
+    except RuntimeError:
+        pass  # Ignore if no context for op
 
     # Set as active and select
     bpy.context.view_layer.objects.active = obj
     obj.select_set(True)
 
-    # Add rigid body if not already present (with context override)
+    # Add rigid body if not already present (with safer context override)
     if obj.rigid_body is None:
         try:
-            # Context override for operator (assumes 3D viewport context)
+            # Safer context override: Only if screen exists
             override = bpy.context.copy()
-            for area in bpy.context.screen.areas:
-                if area.type == 'VIEW_3D':
-                    override['area'] = area
-                    override['region'] = [r for r in area.regions if r.type == 'WINDOW'][0]
-                    break
-            else:
-                # Fallback if no 3D view: Use current context
-                pass
             override['active_object'] = obj
+            if bpy.context.screen:
+                # Find VIEW_3D area safely
+                view3d_area = None
+                for area in bpy.context.screen.areas:
+                    if area.type == 'VIEW_3D':
+                        view3d_area = area
+                        break
+                if view3d_area:
+                    override['area'] = view3d_area
+                    override['region'] = next((r for r in view3d_area.regions if r.type == 'WINDOW'), None)
 
             with bpy.context.temp_override(**override):
                 bpy.ops.rigidbody.object_add()
         except RuntimeError as e:
             print(f"Failed to add rigid body to {obj.name}: {e}")
+            # Fallback: Try without override
+            try:
+                bpy.ops.rigidbody.object_add()
+            except RuntimeError as e2:
+                print(f"Fallback also failed for {obj.name}: {e2}")
+                return False
+        except Exception as e:
+            print(f"Unexpected error adding rigid body to {obj.name}: {e}")
             return False
 
     # Configure rigid body settings
@@ -102,15 +115,22 @@ def create_fixed_constraint(obj1, obj2, constraint_name=None, pivot_location=(0,
     """Create a fixed constraint between two objects at a specific pivot."""
     if constraint_name is None:
         constraint_name = f"Fixed_{obj1.name}_{obj2.name}"
-    # Create empty at pivot location
+    # Create empty at pivot location (no context issue here)
     bpy.ops.object.empty_add(type="PLAIN_AXES", location=pivot_location)
     empty = bpy.context.active_object
     empty.name = constraint_name
-    # Add rigid body constraint (with basic context prep)
-    bpy.ops.object.select_all(action='DESELECT')
+    # Add rigid body constraint (with basic context prep, safer)
+    try:
+        bpy.ops.object.select_all(action='DESELECT')
+    except:
+        pass
     bpy.context.view_layer.objects.active = empty
     empty.select_set(True)
-    bpy.ops.rigidbody.constraint_add()
+    try:
+        bpy.ops.rigidbody.constraint_add()
+    except RuntimeError as e:
+        print(f"Failed to add constraint {constraint_name}: {e}")
+        return None
     empty.rigid_body_constraint.type = "FIXED"
     empty.rigid_body_constraint.object1 = obj1
     empty.rigid_body_constraint.object2 = obj2
@@ -129,11 +149,18 @@ def create_hinge_constraint(obj1, obj2, constraint_name=None, use_motor=False, m
     bpy.ops.object.empty_add(type="PLAIN_AXES", location=pivot_location)
     empty = bpy.context.active_object
     empty.name = constraint_name
-    # Add rigid body constraint (with context prep)
-    bpy.ops.object.select_all(action='DESELECT')
+    # Add rigid body constraint (with safer prep)
+    try:
+        bpy.ops.object.select_all(action='DESELECT')
+    except:
+        pass
     bpy.context.view_layer.objects.active = empty
     empty.select_set(True)
-    bpy.ops.rigidbody.constraint_add()
+    try:
+        bpy.ops.rigidbody.constraint_add()
+    except RuntimeError as e:
+        print(f"Failed to add hinge constraint {constraint_name}: {e}")
+        return None
     empty.rigid_body_constraint.type = "HINGE"
     empty.rigid_body_constraint.object1 = obj1
     empty.rigid_body_constraint.object2 = obj2
@@ -156,10 +183,17 @@ def create_generic_constraint(obj1, obj2, constraint_name=None, pivot_location=(
     empty = bpy.context.active_object
     empty.name = constraint_name
     # Context prep for constraint
-    bpy.ops.object.select_all(action='DESELECT')
+    try:
+        bpy.ops.object.select_all(action='DESELECT')
+    except:
+        pass
     bpy.context.view_layer.objects.active = empty
     empty.select_set(True)
-    bpy.ops.rigidbody.constraint_add()
+    try:
+        bpy.ops.rigidbody.constraint_add()
+    except RuntimeError as e:
+        print(f"Failed to add generic constraint {constraint_name}: {e}")
+        return None
     empty.rigid_body_constraint.type = "GENERIC"
     empty.rigid_body_constraint.object1 = obj1
     empty.rigid_body_constraint.object2 = obj2
