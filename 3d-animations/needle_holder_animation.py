@@ -4,7 +4,7 @@ import math
 
 # Get the directory where this script is loaded
 script_dir = os.path.dirname(os.path.realpath(__file__))
-blend_file = os.path.join(script_dir, "Needle Holder.blend")
+blend_file = os.path.join(script_dir, "/Users/pjramores/projects/bonching/SEAMEO/apiculture-docs/3d-animations/Needle Holder.blend")
 
 # Load the blend file
 bpy.ops.wm.open_mainfile(filepath=blend_file)
@@ -22,7 +22,7 @@ bpy.context.scene.rigidbody_world.enabled = True
 # Configure rigid body world settings
 rbw = bpy.context.scene.rigidbody_world
 rbw.time_scale = 1.0
-rbw.steps_per_second = 60
+rbw.substeps_per_frame = 60
 rbw.solver_iterations = 10
 
 # List all objects in the scene
